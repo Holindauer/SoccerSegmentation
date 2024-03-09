@@ -55,7 +55,6 @@ class UpsampleBlock(nn.Module):
         x = self.conv(x)
         return x
 
-# SegNetConfig dataclass with comments preserved and added type hints
 @dataclass
 class SegNetConfig:
     """
@@ -73,7 +72,6 @@ class SegNetConfig:
     num_classes: int
     channel_multiplier: int = 4
 
-# SegmentationNet class definition with type hints and comments preserved
 class SegmentationNet(nn.Module):
     """
     SegmentationNet is a simple U-Net like architecture for semantic segmentation of images. The general idea
@@ -84,15 +82,17 @@ class SegmentationNet(nn.Module):
     def __init__(self, config: SegNetConfig):
         super().__init__()
         
+        # module lists for the downsampling, pooling, and upsampling blocks
         self.down_blocks: nn.ModuleList = nn.ModuleList()
         self.pool_blocks: nn.ModuleList = nn.ModuleList()
         self.up_blocks: nn.ModuleList = nn.ModuleList()
+        self.channel_multiplier: int = config.channel_multiplier
         
         in_channels: int = 3  # Assuming RGB input
 
         # Assemble downsampling blocks
         for out_channels in config.downsampling_channels:
-            self.down_blocks.append(self._make_layers(ConvDownsamplingBlock, in_channels, [out_channels] * config.channel_multiplier))
+            self.down_blocks.append(self._make_layers(ConvDownsamplingBlock, in_channels, [out_channels] * self.channel_multiplier))
             self.pool_blocks.append(PoolingBlock())
             in_channels = out_channels
 
