@@ -111,6 +111,7 @@ class DataReader:
     visualizing datasets for use in training a semantic segmentation model.
     """
     def __init__(self, imgSize: Tuple[int, int] = (256, 256)):    
+
         # Original images transform
         self.transform = transforms.Compose([   
             transforms.Resize(imgSize),
@@ -129,16 +130,19 @@ class DataReader:
 
     def loadSegmentationDataset(self, originals_path: str, segmentations_path: str):
         """Loads a dataset consisting of original images and their corresponding segmentation masks."""
-        self.dataset = SegmentationDataset(
+        
+        dataset = SegmentationDataset(
             originals_path, 
             segmentations_path, 
             transform=self.transform, 
             target_transform=self.target_transform
             )
         
-    def wrapDataLoader(self, batchSize: int) -> DataLoader:
+        return dataset
+        
+    def wrapDataLoader(self, dataset : SegmentationDataset, batchSize: int) -> DataLoader:
         """ Wraps the loaded segmentation dataset in a DataLoader. """
-        return DataLoader(self.dataset, batch_size=batchSize, shuffle=True)
+        return DataLoader(dataset, batch_size=batchSize, shuffle=True)
     
     def plotExamples(self, numImages: int, className: str) -> None:
         """Wrapper for Plot.plot_examples() using dataset and transform from the DataReader instance."""

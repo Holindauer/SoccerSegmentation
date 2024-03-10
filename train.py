@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from dataclasses import dataclass
-from copy import deepcopy
 
 @dataclass
 class TrainConfig:
@@ -20,10 +19,10 @@ class Trainer:
 
     def __init__(self, config: TrainConfig):
         
-        # Set the model, data loaders, loss function, optimizer, and number of epochs
+        # unpack config
         self.model = config.model
-        self.train_loader = config.trainLoader
-        self.test_loader = config.testLoader
+        self.trainLoader = config.trainLoader
+        self.testLoader = config.testLoader
         self.criterion = config.criterion
         self.optimizer = config.optimizer
         self.epochs = config.epochs
@@ -38,9 +37,9 @@ class Trainer:
             # Set the model to training mode
             self.model.train()
 
-            epochLoss = 0.0
+            trainLoss = 0.0
 
-            for i, data in enumerate(self.train_loader, 0):
+            for i, data in enumerate(self.trainLoader, 0):
 
                 # send the inputs and labels to the device
                 inImages, segMasks = data[0].to(self.device), data[1].to(self.device)
@@ -57,16 +56,45 @@ class Trainer:
                 self.optimizer.step()
 
                 # update training metrics
-                epochLoss += loss.item()
+                trainLoss += loss.item()
 
-                print(f"Batch {i+1} of {len(self.train_loader)}: Step Loss {loss.item()}", end='\r')
+                print(f"Batch {i+1} of {len(self.trainLoader)}: Step Loss {loss.item()}", end='\r')
 
+            # test 
+            testLoss = self.test()
 
+            trainLoss /= len(self.trainLoader) / self.trainLoader.batch_size
 
-            epochLoss /= len(self.train_loader) / self.train_loader.batch_size
-
-
-            print(f"Epoch {epoch+1} Loss: {epochLoss:.4f}")
+            print(" " * 100, end='\r') # Clear the line
+            print(f"Epoch {epoch+1} Train Loss: {trainLoss:.4f} Test Loss: {testLoss:.4f}")
 
         
         return self.model
+    
+
+    def test(self) -> float:
+
+        # Set the model to evaluation mode
+        self.model.eval()
+
+        testLoss = 0.0
+
+        for i, data in enumerate(self.testLoader, 0):
+
+            # send the inputs and labels to the device
+            inImages, segMasks = data[0].to(self.device), data[1].to(self.device)
+
+            # Forward pass
+            outputs = self.model(inImages)
+
+            loss = self.criterion(outputs, segMasks)
+
+            # update test metrics
+            testLoss += loss.item()
+
+        # return averaged loss
+        return testLoss / len(self.testLoader) / self.testLoader.batch_size
+
+
+
+
