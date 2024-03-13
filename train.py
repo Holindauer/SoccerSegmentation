@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from dataclasses import dataclass
+from earlyStopping import EarlyStopping
+from collections import OrderedDict
 
 @dataclass
 class TrainConfig:
@@ -11,6 +13,8 @@ class TrainConfig:
     criterion: nn.Module
     optimizer: torch.optim.Optimizer
     epochs: int
+    doEarlyStopping : bool
+    esPatience : int
 
 class Trainer:
     """
@@ -19,18 +23,23 @@ class Trainer:
 
     def __init__(self, config: TrainConfig):
         
-        # unpack config
-        self.model = config.model
         self.trainLoader = config.trainLoader
         self.testLoader = config.testLoader
         self.criterion = config.criterion
         self.optimizer = config.optimizer
         self.epochs = config.epochs
 
+        # set device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = config.model.to(self.device)
+        print("Training on:", self.device)
 
+        # init early stopping
+        self.doEarlyStopping = config.doEarlyStopping
+        if self.doEarlyStopping:
+            self.earlyStopping = EarlyStopping(config.esPatience)
     
-    def train(self):
+    def train(self) -> OrderedDict: # <-- model state dict
 
         for epoch in range(self.epochs):
 
@@ -60,16 +69,22 @@ class Trainer:
 
                 print(f"Batch {i+1} of {len(self.trainLoader)}: Step Loss {loss.item()}", end='\r')
 
-            # test 
+            # update metrics
             testLoss = self.test()
-
             trainLoss /= len(self.trainLoader) / self.trainLoader.batch_size
 
+            # Early stopping
+            if self.doEarlyStopping:
+                if self.earlyStopping(self.model, testLoss):
+                    print(f"Early stopping at epoch {epoch+1} with test loss {testLoss:.4f}")
+                    break
+            
+            # print epoch metrics
             print(" " * 100, end='\r') # Clear the line
             print(f"Epoch {epoch+1} Train Loss: {trainLoss:.4f} Test Loss: {testLoss:.4f}")
 
         
-        return self.model
+        return self.earlyStopping.bestModel
     
 
     def test(self) -> float:
